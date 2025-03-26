@@ -5,12 +5,31 @@ const { hashPassword } = require('../../../utils/password');
 async function getUsers(request, response, next) {
   try {
     const users = await usersService.getUsers();
-
-    return response.status(200).json(users);
-  } catch (error) {
-    return next(error);
-  }
-}
+    const offset = parseInt(request.query.offset) || 0;
+    const limit = parseInt(request.query.limit) || 10;
+    //dapetin total jumlah user
+    const totalUsers = await usersService.countUsers();
+    const Users = await usersService.getUsersPaginated(offset, limit);
+    // Hitung total halaman
+    const totalPages = Math.ceil(totalUsers / limit);
+    // Tentukan URL untuk next dan previous page
+    const baseUrl = `${request.protocol}://${request.get('host')}${request.baseUrl}`;
+    // Buat response dengan struktur PokeAPI
+    const responseData = {
+      count: totalUsers,
+      next: offset + limit < totalUsers 
+        ? `${baseUrl}?offset=${offset + limit}&limit=${limit}` 
+        : null,
+      previous: offset > 0 
+        ? `${baseUrl}?offset=${Math.max(0, offset - limit)}&limit=${limit}` 
+        : null,
+      results: users
+      };
+        return response.status(200).json(responseData);
+      } catch (error) {
+        return next(error);
+      }
+    }
 
 async function getUser(request, response, next) {
   try {
@@ -191,6 +210,74 @@ async function deleteUser(request, response, next) {
   }
 }
 
+async function deleteUser(request, response, next) {
+  try {
+    const success = await usersService.deleteUser(request.params.id);
+    if (!success){
+      throw errorResponder(
+        errorTypes.UNPROCESSABLE_ENTITY,
+        'Failed to delete user'
+      );
+    }
+    return response.status(200).json({ message: 'User deleted successfully' });
+  }catch (error){
+    return next(error);
+  }
+}
+//new login 
+async function loginUser(request, response, next){
+  try{
+    const{email, password} = request.body;
+
+    //dapet email
+    if (!email){
+      throw errorResponder(
+        errorTypes.VALIDATION_ERROR,
+        'Email is required'
+      );
+    }
+
+    ///dapet password
+    if(!password){
+      throw errorResponder(
+        errorTypes.VALIDATION_ERROR,
+        'Password is required'
+      );
+    }
+
+    // cari email user
+    const user = await usersService.getUserByEmail(email);
+
+    //kalo ga ketemu
+    if(!user){
+      throw errorResponder(
+        errorTypes.UNAUTHORIZED,
+        'Invalid email or password'
+      );
+    }
+    //cek password 
+    const isPasswordCorrect = await passwordMatched(password, user.password);
+
+    //kalo salah
+    if(!isPasswordCorrect){
+      throw errorResponder(
+        errorTypes.UNAUTHORIZED,
+        'Invalid email or password'
+      );
+    }
+    //login berhasil
+    return response.status(200).json({
+      message:'login succesful',
+      user:{
+        id:user.id, 
+        email:user.email,
+        full_name:user.full_name
+      }
+    });
+  }catch (error){
+    return next(error);
+  }
+}
 module.exports = {
   getUsers,
   getUser,
@@ -198,4 +285,5 @@ module.exports = {
   updateUser,
   changePassword,
   deleteUser,
+  loginUser,
 };

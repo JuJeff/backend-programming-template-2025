@@ -24,4 +24,9 @@ module.exports = (app) => {
 
   // Delete user
   route.delete('/:id', usersController.deleteUser);
+
+  //rute login baru
+  route.post('/login', usersController.loginUser);
+
+  module.exports = route;
 };

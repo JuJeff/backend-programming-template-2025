@@ -1,5 +1,32 @@
 const usersRepository = require('./users-repository');
-
+const User = require('../modelsUser');
+async function getUserByEmail(email){
+  try{
+    //cari user
+    const user = await User.findOne({email});
+    return user;
+  }catch (error){
+    throw error;
+  }
+}
+async function getUsersPaginated(offset, limit) {
+  try {
+    const users = await User.find()
+      .skip(offset)
+      .limit(limit)
+      .select('-password'); // Hindari mengembalikan password
+    return users;
+  } catch (error) {
+    throw error;
+  }
+}
+async function countUsers() {
+  try {
+    return await User.countDocuments();
+  } catch (error) {
+    throw error;
+  }
+}
 async function getUsers() {
   return usersRepository.getUsers();
 }
